@@ -1,21 +1,59 @@
-import { observable, action, computed } from 'mobx';
+import { observable, action, computed, autorun, flow } from 'mobx';
 
-class mainStore{
-  @observable 
-  todoList = [
-    { text: '我是待办事项1', complete: false }
-  ]
-  @computed
-  get finish() {
-    return this.todoList.filter(todo => todo.complete).length
-  }
-  @action
-  onClick = () => {
-    console.log('触发了action')
-  }
-  addTodo() {
-    this.todoList.push({ text: `待办事项 ${Date.now()}`, complete: false })
+class Item{
+  @observable value
+  @observable id
+  @observable complete
+
+  constructor(value) {
+    this.value = value
+    this.id = Date.now()
+    this.complete = false
   }
 }
 
-export default new mainStore();
+class Todo {
+  @observable todoList = []
+  @observable filter = ''
+  @observable status = 'pending'
+  @computed get todoFilterList() {
+    const reg = new RegExp(this.filter, 'i')
+    return this.todoList.filter(item => !this.filter || reg.test(item.value))
+  }
+  @action.bound removeTodo(todo) {
+    this.todoList.remove(todo)
+  }
+  @action.bound setFilter(keyword) {
+    this.filter = keyword
+  }
+  @action.bound addTodo(value) {
+    this.todoList.push(new Item(value))
+  }
+  @action.bound deleteComplete() {
+    const incompleteTodos = this.todoList.filter(item => !item.complete)
+    this.todoList.replace(incompleteTodos)
+  }
+  @action.bound
+  asyncFn = flow(function *() {
+    try {
+      this.status = 'pending'
+      const result = yield function() {
+        return new Promise(resolve => {
+          setTimeout(() => {
+            resolve('success')
+          }, 2000)
+        })
+      }()
+      this.status = result
+    } catch {
+      this.status = 'error'
+    }
+  })
+}
+
+const todo = window.todo =  new Todo()
+
+autorun(() => {
+  console.log(todo.status)
+})
+export default todo;
